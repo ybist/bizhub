@@ -31,12 +31,18 @@ def calmonths(startdate, enddate):
 
     elif samemonthdate < enddate:
         nextmonthdate = None
+        if enddate.month == 12:
+            endyear =  enddate.year + 1
+            endmonth = 1
+        else:
+            endyear =  enddate.year
+            endmonth = enddate.month + 1         
         try:
             nextmonthdate = datetime.date(
                 enddate.year, enddate.month + 1, startdate.day)
         except Exception as e:
             nextmonthdate = datetime.date(
-                enddate.year, enddate.month + 1, c.monthrange(enddate.year, enddate.month + 1)[1])
+                endyear, endmonth, c.monthrange(endyear, endmonth)[1])
         currmonthdays = (nextmonthdate - samemonthdate).days
         holdmonths = (samemonthdate.year - startdate.year) * \
             12 + samemonthdate.month - startdate.month
