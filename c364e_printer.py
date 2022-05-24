@@ -29,15 +29,17 @@ locale.setlocale(locale.LC_CTYPE, 'chinese')
 
 def get_printer_count(year, month, day, cycle, black_start_num, black_month_num, color_start_num, color_month_num):
     list = []
+    toner = []
+    status_toner = {}
     all_count = ''
     chrome_options = webdriver.ChromeOptions()
     # 使用headless无界面浏览器模式
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-gpu')
 
-    # 启动浏览器，获取网页源代码，读取 http://192.168.2.251/wcd/system_counter.xml 页面 总计，黑色，彩色的计数器数量
+    # 启动浏览器，获取网页源代码，读取 http://192.168.2.240/wcd/system_counter.xml 页面 总计，黑色，彩色的计数器数量
     browser = webdriver.Chrome(chrome_options=chrome_options)
-    mainUrl = "http://192.168.2.251/wcd/system_counter.xml"
+    mainUrl = "http://192.168.2.240/wcd/system_counter.xml"
     browser.get(mainUrl)
     time.sleep(15)
     # print(f"browser text = {browser.page_source}")
@@ -48,6 +50,29 @@ def get_printer_count(year, month, day, cycle, black_start_num, black_month_num,
     html_data = html.xpath('//td//div[@align="right"]')
     for i in html_data:
         list.append(i.text)
+    
+    toner_url = "http://192.168.2.240/wcd/system_device.xml"
+    browser.get(toner_url)
+    time.sleep(5)
+    webdata = browser.page_source
+    status_html = etree.HTML(webdata)
+    status = status_html.xpath('//*[@id="StatusHtml"]/table[2]/tbody/tr/td[2]/a/font/text()')[0]
+    print(status)
+    
+    #获取碳粉状态    
+    #status_toner = status_html.xpath('//*[@id="MC_DeviceInfo"]/div[3]/table/tbody//tr//td//text()')
+    for i in range(2,6):
+        key = status_html.xpath('//*[@id="MC_DeviceInfo"]/div[3]/table/tbody/tr[' + str(i) +']/td[1]/text()')[0]
+        value = status_html.xpath('//*[@id="MC_DeviceInfo"]/div[3]/table/tbody/tr[' + str(i) +']/td[3]/text()')[0].replace('\n','').replace('\t','')
+        status_toner[key] = value
+    #print(status_toner)
+    
+    print('碳粉状态')
+    if len(status_toner) == 4: 
+        for i in status_toner:
+            toner.append(i + '=' + status_toner[i])
+        print(toner)
+    
     browser.quit()
 
     # 打印机当前总计、黑色、彩色的计数器数量
@@ -101,15 +126,15 @@ def get_printer_count(year, month, day, cycle, black_start_num, black_month_num,
     print('截止', end_date, '剩余数量_黑色:', black_remain)
     print('截止', end_date, '剩余数量_彩色:', color_remain, '\n')
 
-    print_lite = 'c364e打印数统计\n' + monthrange + '\n截止本月剩余' + '\n黑色：' + str(black_month_remain) + '\n彩色：' + str(color_month_remain) + '\n' + '\n******************' + '\n截止' + str(end_date) + '剩余' + '\n黑色：' + str(
-        black_remain) + '\n彩色：' + str(color_remain)
+    print_lite = 'c364e打印数统计\n' + monthrange + '\n截止本月剩余' + '\n黑色：' + str(black_month_remain) + '\n彩色：' + str(color_month_remain) + '\n'  + '\n截止' + str(end_date) + '剩余' + '\n黑色：' + str(
+        black_remain) + '\n彩色：' + str(color_remain) + '\n\n打印机状态：' + status + '\n\n碳粉状态\n' + str(toner)
     print(print_lite)
     '''
     if (black_cur_count >= (black_limit-500)) or ((current_date.day > 1) and (current_date.day < 5)):
-        black_command = 'msg /server:192.168.2.15 * "c226打印机本月黑色上限' + str(black_limit) + ',已使用' + str(list[104]) + '",本月剩余"' + str(black_month_remain)
+        black_command = 'msg /server:192.168.2.15 * "c364e打印机本月黑色上限' + str(black_limit) + ',已使用' + str(list[104]) + '",本月剩余"' + str(black_month_remain)
         os.system(black_command)
     if (color_cur_count >= (color_limit-50)) or ((current_date.day > 1) and (current_date.day < 5)):
-        color_command = 'msg /server:192.168.2.15 * "c226打印机本月彩色上限' + str(color_limit) + ',已使用' + str(list[105]) + '",本月剩余"' + str(color_month_remain)
+        color_command = 'msg /server:192.168.2.15 * "c364e打印机本月彩色上限' + str(color_limit) + ',已使用' + str(list[105]) + '",本月剩余"' + str(color_month_remain)
         os.system(color_command)
     '''
     with open('c364e_printer.txt', 'r+', encoding="utf-8") as fp:
@@ -118,8 +143,8 @@ def get_printer_count(year, month, day, cycle, black_start_num, black_month_num,
             black_month_remain) + '         ' + str(color_cur_count) + '     ' + str(color_month_remain))
 
     # Synology_Chat(print_all)
-    # Ding_Bot(print_lite)
-
+    #Ding_Bot(print_lite)
+    #Ding_Bot1(print_lite)
 
 # 发送到群晖Chat
 def Synology_Chat(count):
@@ -131,12 +156,20 @@ def Synology_Chat(count):
 
 def Ding_Bot(count):
     webhook = 'https://oapi.dingtalk.com/robot/send?access_token=token'
-    secret = 'secret'
+    secret = 'secret' 
     xiaoding = DingtalkChatbot(webhook, secret=secret)
-    at_mobiles = ['186612345678']
+    at_mobiles = ['18612345678']
     #xiaoding.send_text(msg = count, at_mobiles=at_mobiles)
-    xiaoding.send_text(msg=count, is_at_all=False)
+    xiaoding.send_text(msg = count, is_at_all=False)
 
+
+def Ding_Bot1(count):
+    webhook = 'https://oapi.dingtalk.com/robot/send?access_token=token'
+    secret = 'secret' 
+    xiaoding = DingtalkChatbot(webhook, secret=secret)
+    at_mobiles = ['18612345678']
+    #xiaoding.send_text(msg = count, at_mobiles=at_mobiles)
+    xiaoding.send_text(msg = count, is_at_all=False)
 
 if __name__ == '__main__':
     curpath = os.path.dirname(os.path.realpath(__file__))
